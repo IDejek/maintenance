@@ -3,7 +3,7 @@
  * Babarida Maintenance Theme Functions
  *
  * @package Babarida_Maintenance
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -14,10 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Theme Setup
 // ==============================
 function babarida_maintenance_setup() {
-    // Add title tag support
     add_theme_support( 'title-tag' );
 
-    // Add custom logo support
     add_theme_support( 'custom-logo', array(
         'height'      => 80,
         'width'       => 300,
@@ -25,8 +23,11 @@ function babarida_maintenance_setup() {
         'flex-width'  => true,
     ) );
 
-    // Load text domain for translation
-    load_theme_textdomain( 'babarida-maintenance', get_template_directory() . '/languages' );
+    // Text domain — fallback jika folder languages belum ada
+    $lang_dir = get_template_directory() . '/languages';
+    if ( is_dir( $lang_dir ) ) {
+        load_theme_textdomain( 'babarida-maintenance', $lang_dir );
+    }
 }
 add_action( 'after_setup_theme', 'babarida_maintenance_setup' );
 
@@ -47,7 +48,7 @@ function babarida_maintenance_scripts() {
         'babarida-maintenance-style',
         get_stylesheet_uri(),
         array(),
-        '1.0.0'
+        '1.0.1'
     );
 
     // Iconify
@@ -59,28 +60,21 @@ function babarida_maintenance_scripts() {
         true
     );
 
-    // Theme JS
-    wp_enqueue_script(
-        'babarida-maintenance-js',
-        get_template_directory_uri() . '/assets/js/main.js',
-        array(),
-        '1.0.0',
-        true
-    );
+    // TIDAK perlu enqueue main.js lagi — 
+    // semua JS sudah inline di footer.php
 }
 add_action( 'wp_enqueue_scripts', 'babarida_maintenance_scripts' );
 
 // ==============================
-// Disable Unnecessary WP Features (Maintenance Mode)
+// Disable Unnecessary WP Features
 // ==============================
 
-// Disable RSS feeds
+// Disable RSS feeds — kirim 503 Service Unavailable
 function babarida_disable_feed() {
     wp_die(
-        sprintf(
-            '<p>%s</p>',
-            esc_html__( 'Halaman tidak tersedia saat ini. / Page not available at this time.', 'babarida-maintenance' )
-        )
+        '<p>' . esc_html__( 'Sedang dalam perbaikan. / Under maintenance.', 'babarida-maintenance' ) . '</p>',
+        '',
+        array( 'response' => 503 )
     );
 }
 add_action( 'do_feed',      'babarida_disable_feed', 1 );
@@ -89,7 +83,7 @@ add_action( 'do_feed_rss',  'babarida_disable_feed', 1 );
 add_action( 'do_feed_rss2', 'babarida_disable_feed', 1 );
 add_action( 'do_feed_atom', 'babarida_disable_feed', 1 );
 
-// Remove unnecessary head links
+// Clean up <head>
 function babarida_clean_head() {
     remove_action( 'wp_head', 'rsd_link' );
     remove_action( 'wp_head', 'wlwmanifest_link' );
@@ -106,13 +100,22 @@ add_action( 'init', 'babarida_clean_head' );
 // Disable admin bar on frontend
 add_filter( 'show_admin_bar', '__return_false' );
 
+// Kirim HTTP 503 header untuk SEO (opsional tapi bagus)
+function babarida_503_header() {
+    if ( ! is_user_logged_in() && ! is_admin() ) {
+        header( 'HTTP/1.1 503 Service Unavailable' );
+        header( 'Retry-After: 60' );
+    }
+}
+add_action( 'template_redirect', 'babarida_503_header' );
+
 // ==============================
 // Customizer
 // ==============================
 require get_template_directory() . '/inc/customizer.php';
 
 // ==============================
-// Helper: Get theme mod with fallback
+// Helper
 // ==============================
 function babarida_get( $key, $default = '' ) {
     return get_theme_mod( 'babarida_' . $key, $default );
